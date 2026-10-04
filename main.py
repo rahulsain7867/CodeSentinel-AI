@@ -50,8 +50,8 @@ ARTIFACT_SERVICE_URI = _get_artifact_service_uri()
 # Create the FastAPI app with ADK
 app = get_fast_api_app(
     agents_dir=os.path.dirname(os.path.abspath(__file__)),
-    session_service_uri=SESSION_SERVICE_URI,
-    artifact_service_uri=ARTIFACT_SERVICE_URI,
+    session_service_uri=os.getenv("SESSION_SERVICE_URI", "sqlite:///./sessions.db"),
+    artifact_service=InMemoryArtifactService(),
     allow_origins=["*"],
     web=True,
     trace_to_cloud=False
