@@ -1,5 +1,8 @@
 """
-Configuration management for the Code Review Assistant.
+Configuration management for CodeSentinel AI.
+
+Author: Rahul Sain
+Based on: Code Review Assistant by Ayo Adedeji (Apache-2.0)
 
 This module loads all configuration from environment variables and a .env file,
 using Pydantic for validation.
@@ -20,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class AgentConfig(BaseSettings):
     """
-    Defines and validates all configuration settings for the application.
+    Defines and validates all configuration settings for CodeSentinel AI.
     Loads values from a .env file and environment variables.
     """
     model_config = SettingsConfigDict(
@@ -61,22 +64,29 @@ class AgentConfig(BaseSettings):
 
     # --- Artifact Storage Configuration ---
     artifact_bucket: Optional[str] = Field(
-        default=None, description="GCS bucket for artifact storage (e.g., 'your-project-artifacts')"
+        default=None, description="GCS bucket for artifact storage."
     )
 
     # --- Model Configuration ---
     google_genai_use_vertexai: bool = Field(
-        default=True, description="Use Vertex AI (True) or Google AI Studio (False)."
+        default=False, description="Use Vertex AI (True) or Google AI Studio (False)."
     )
     google_api_key: Optional[str] = Field(
         default=None, description="API key for Google AI Studio (if not using Vertex AI)."
     )
-    # Using -latest tags is a best practice to stay current.
     worker_model: str = Field(
         default="gemini-2.5-flash", description="Model for fast analysis tasks."
     )
     critic_model: str = Field(
         default="gemini-2.5-pro", description="Advanced model for nuanced feedback."
+    )
+
+    # --- CodeSentinel AI Configuration ---
+    codesentinel_developer_id: str = Field(
+        default="default_developer", description="Developer identifier for review history."
+    )
+    firestore_collection: str = Field(
+        default="codesentinel_reviews", description="Firestore collection for review history."
     )
 
     # --- Grading Parameters ---
@@ -113,7 +123,7 @@ class AgentConfig(BaseSettings):
     @classmethod
     def set_google_cloud_project(cls, v: Optional[str]) -> Optional[str]:
         """Try to auto-detect GCP project if not explicitly set."""
-        if v:
+        if v and v != "your-project-id":
             return v
         try:
             _, project_id = google.auth.default()
@@ -121,7 +131,7 @@ class AgentConfig(BaseSettings):
                 logger.info(f"Auto-detected GCP project: {project_id}")
                 return project_id
         except (DefaultCredentialsError, FileNotFoundError):
-            if os.getenv('K_SERVICE'): # Check if running in Cloud Run
+            if os.getenv('K_SERVICE'):  # Check if running in Cloud Run
                 logger.warning("Running in a cloud environment but GOOGLE_CLOUD_PROJECT is not set.")
         return None
 
@@ -134,7 +144,6 @@ logging.getLogger().setLevel(config.log_level)
 logger.info("Logging configured to level: %s", config.log_level)
 
 # Set environment variables that the underlying ADK or Google Cloud libraries may expect.
-# This ensures consistency even if other libraries read from the environment directly.
 if config.google_cloud_project:
     os.environ.setdefault("GOOGLE_CLOUD_PROJECT", config.google_cloud_project)
 if config.google_cloud_location:
@@ -142,8 +151,13 @@ if config.google_cloud_location:
 if config.google_api_key:
     os.environ.setdefault("GOOGLE_API_KEY", config.google_api_key)
 
+# Ensure GOOGLE_GENAI_USE_VERTEXAI env var is set for the Google GenAI SDK
+os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = str(config.google_genai_use_vertexai).lower()
+
 # Log a summary of the most important configuration values on startup.
-logger.info("Code Review Assistant Configuration Loaded:")
+logger.info("CodeSentinel AI Configuration Loaded:")
 logger.info(f"  - GCP Project: {config.google_cloud_project or 'Not set'}")
-logger.info(f"  - Artifact Bucket: {config.artifact_bucket or 'In-memory (local only)'}")
+logger.info(f"  - Using Vertex AI: {config.google_genai_use_vertexai}")
 logger.info(f"  - Models: worker={config.worker_model}, critic={config.critic_model}")
+logger.info(f"  - Firestore Collection: {config.firestore_collection}")
+logger.info(f"  - Developer ID: {config.codesentinel_developer_id}")

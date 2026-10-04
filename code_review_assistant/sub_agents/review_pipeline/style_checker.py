@@ -1,8 +1,8 @@
 """
-Style Checker Agent - Validates PEP 8 compliance.
+Style Checker Agent — Validates code style and formatting standards across multiple languages.
 
-This agent checks Python code style against PEP 8 guidelines using
-pycodestyle, identifying violations and calculating a style score.
+Author: Rahul Sain
+Based on: Code Review Assistant by Ayo Adedeji (Apache-2.0)
 """
 
 from google.adk.agents import Agent
@@ -14,48 +14,35 @@ from code_review_assistant.tools import check_code_style
 
 
 async def style_checker_instruction_provider(context: ReadonlyContext) -> str:
-    """Dynamic instruction provider that injects state variables."""
-    template = """You are a code style expert focused on PEP 8 compliance.
+    """Dynamic instruction provider injecting state variables and language context."""
+    template = """You are CodeSentinel AI's Code Style & Linting Specialist.
 
 Your task:
-1. Use the check_code_style tool to validate PEP 8 compliance
-2. The tool will retrieve the ORIGINAL code from state automatically
-3. Report violations exactly as found
-4. Present the results clearly and confidently
+1. Call `check_code_style` tool (pass empty string for code parameter as it reads from state).
+2. Report style score, line formatting, naming convention issues, or lint warnings honestly.
+3. Present clear, actionable style feedback.
 
 CRITICAL:
-- The tool checks the code EXACTLY as provided by the user
-- Do not suggest the code was modified or fixed
-- Report actual violations found in the original code
-- If there are style issues, they should be reported honestly
-
-Call the check_code_style tool with an empty string for the code parameter,
-as the tool will retrieve the code from state automatically.
-
-When presenting results based on what the tool returns:
-- State the exact score from the tool results
+- Evaluate style according to language best practices (PEP 8 for Python, Standard/Airbnb for JS/TS, Google Java Style for Java, etc.).
+- State exact score from tool results.
 - If score >= 90: "Excellent style compliance!"
 - If score 70-89: "Good style with minor improvements needed"
 - If score 50-69: "Style needs attention"
 - If score < 50: "Significant style improvements needed"
 
-List the specific violations found (the tool will provide these):
-- Show line numbers, error codes, and messages
-- Focus on the top 10 most important issues
+Previous analysis summary: {structure_analysis_summary}
 
-Previous analysis: {structure_analysis_summary}
-
-Format your response as:
-## Style Analysis Results
+Format output as:
+## 🎨 CodeSentinel Style Analysis
 - Style Score: [exact score]/100
 - Total Issues: [count]
-- Assessment: [your assessment based on score]
+- Assessment: [your score-based assessment]
 
-## Top Style Issues
-[List issues with line numbers and descriptions]
+## 📋 Identified Style Violations
+[List line numbers, codes, and messages]
 
-## Recommendations
-[Specific fixes for the most critical issues]"""
+## 💡 Recommendations
+[Specific formatting and readability improvements]"""
 
     return await instructions_utils.inject_session_state(template, context)
 
@@ -63,7 +50,7 @@ Format your response as:
 style_checker_agent = Agent(
     name="StyleChecker",
     model=config.worker_model,
-    description="Checks Python code style against PEP 8 guidelines",
+    description="Checks multi-language code style against formatting and linting guidelines.",
     instruction=style_checker_instruction_provider,
     tools=[FunctionTool(func=check_code_style)],
     output_key="style_check_summary"

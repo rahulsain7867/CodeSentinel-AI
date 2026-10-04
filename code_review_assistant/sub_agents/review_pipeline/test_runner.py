@@ -1,8 +1,8 @@
 """
-Test Runner Agent - Generates and executes tests using built-in code executor.
+Test Runner Agent — Generates and executes test validation suites using safe code execution.
 
-This agent generates appropriate test cases based on code analysis
-and runs them using ADK's built-in code executor.
+Author: Rahul Sain
+Based on: Code Review Assistant by Ayo Adedeji (Apache-2.0)
 """
 
 from google.adk.agents import Agent
@@ -13,28 +13,22 @@ from code_review_assistant.config import config
 
 
 async def test_runner_instruction_provider(context: ReadonlyContext) -> str:
-    """Dynamic instruction provider that injects the code_to_review directly."""
-    template = """You are a testing specialist who creates and runs tests for Python code.
+    """Dynamic instruction provider injecting code under test and execution rules."""
+    template = """You are CodeSentinel AI's Automated Test Specialist.
 
 THE CODE TO TEST IS:
-```python
+```
 {code_to_review}
 ```
 
 YOUR TASK:
-1. Understand what the function appears to do based on its name and structure
-2. Generate comprehensive tests (15-20 test cases)
-3. Execute the tests using your code executor
-4. Analyze results to identify bugs vs expected behavior
-5. Output a detailed JSON analysis
+1. Determine the apparent intent and language of the code.
+2. Generate comprehensive unit and edge-case test suites (15-20 assertions).
+3. Execute tests safely using your built-in code executor.
+4. Analyze pass/fail/crash rates and identify root cause issues.
+5. Output detailed JSON analysis.
 
-TESTING METHODOLOGY:
-- Test with the most natural interpretation first
-- When something fails, determine if it's a bug or unusual design
-- Test edge cases, boundaries, and error scenarios
-- Document any surprising behavior
-
-Execute your tests and output ONLY this JSON structure:
+Output ONLY this JSON structure:
 {{
     "test_summary": {{
         "total_tests_run": <number>,
@@ -45,7 +39,7 @@ Execute your tests and output ONLY this JSON structure:
     }},
     "critical_issues": [
         {{
-            "type": "interface_bug|logic_error|crash",
+            "type": "interface_bug|logic_error|crash|security_risk",
             "description": "Clear explanation of the issue",
             "example_input": "Input that triggers the issue",
             "expected_behavior": "What should happen",
@@ -54,14 +48,14 @@ Execute your tests and output ONLY this JSON structure:
         }}
     ],
     "test_categories": {{
-        "basic_functionality": {{"passed": X, "failed": Y, "errors": Z}},
-        "edge_cases": {{"passed": X, "failed": Y, "errors": Z}},
-        "error_handling": {{"passed": X, "failed": Y, "errors": Z}}
+        "basic_functionality": {{"passed": 0, "failed": 0, "errors": 0}},
+        "edge_cases": {{"passed": 0, "failed": 0, "errors": 0}},
+        "error_handling": {{"passed": 0, "failed": 0, "errors": 0}}
     }},
     "function_behavior": {{
         "apparent_purpose": "What this function seems designed to do",
         "actual_interface": "How it actually needs to be called",
-        "unexpected_requirements": ["List any surprising requirements"]
+        "unexpected_requirements": []
     }},
     "verdict": {{
         "status": "WORKING|BUGGY|BROKEN",
@@ -70,7 +64,7 @@ Execute your tests and output ONLY this JSON structure:
     }}
 }}
 
-Do NOT output the test code itself, only the JSON analysis."""
+Do NOT output the raw test source code, only the JSON summary."""
 
     return await instructions_utils.inject_session_state(template, context)
 
@@ -78,7 +72,7 @@ Do NOT output the test code itself, only the JSON analysis."""
 test_runner_agent = Agent(
     name="TestRunner",
     model=config.worker_model,
-    description="Generates and runs tests for Python code using safe code execution",
+    description="Generates and executes automated tests using safe sandbox code execution.",
     instruction=test_runner_instruction_provider,
     code_executor=BuiltInCodeExecutor(),
     output_key="test_execution_summary"

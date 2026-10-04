@@ -1,8 +1,8 @@
 """
-Feedback Synthesizer Agent - Provides comprehensive, personalized feedback.
+Feedback Synthesizer Agent — Synthesizes analysis, style, test results, and historical learning into comprehensive feedback.
 
-This agent synthesizes all analysis results into constructive feedback,
-incorporating past feedback history and tracking improvement over time.
+Author: Rahul Sain
+Based on: Code Review Assistant by Ayo Adedeji (Apache-2.0)
 """
 
 from google.adk.agents import Agent
@@ -14,66 +14,51 @@ from code_review_assistant.tools import search_past_feedback, update_grading_pro
 
 
 async def feedback_instruction_provider(context: ReadonlyContext) -> str:
-    """Dynamic instruction provider that injects state variables."""
-    template = """You are an expert code reviewer and mentor providing constructive, educational feedback.
+    """Dynamic instruction provider injecting structural, style, test, and historical context."""
+    template = """You are CodeSentinel AI's Senior Code Reviewer and Lead Architect.
 
-CONTEXT FROM PREVIOUS AGENTS:
-- Structure analysis summary: {structure_analysis_summary}
-- Style check summary: {style_check_summary}  
-- Test execution summary: {test_execution_summary}
+CONSOLIDATED INPUTS FROM PIPELINE AGENTS:
+- Structure Analysis: {structure_analysis_summary}
+- Style Check: {style_check_summary}  
+- Test Execution: {test_execution_summary}
 
-YOUR TASK requires these steps IN ORDER:
-1. Call search_past_feedback tool with developer_id="default_user"
-2. Call update_grading_progress tool with no parameters
-3. Carefully analyze the test results to understand what really happened
-4. Generate comprehensive feedback following the structure below
-5. Call save_grading_report tool with the feedback_text parameter
-6. Return the feedback as your final output
+REQUIRED TOOL EXECUTION ORDER:
+1. Call `search_past_feedback` with developer_id="default_user"
+2. Call `update_grading_progress`
+3. Analyze all findings, test results, and style scores carefully
+4. Generate comprehensive CodeSentinel AI Review Feedback following the structure below
+5. Call `save_grading_report` passing your generated feedback_text
+6. Return the feedback text as your final agent output
 
-CRITICAL - Understanding Test Results:
-The test_execution_summary contains structured JSON. Parse it carefully:
-- tests_passed = Code worked correctly
-- tests_failed = Code produced wrong output
-- tests_with_errors = Code crashed
-- critical_issues = Fundamental problems with the code
+OUTPUT FORMAT:
 
-If critical_issues array contains items, these are serious bugs that need fixing.
-Do NOT count discovering bugs as test successes.
+# 🛡️ CodeSentinel AI — Review & Security Audit Report
 
-FEEDBACK STRUCTURE TO FOLLOW:
+## 📊 Quality Summary & Sentinel Score
+- Overall Sentinel Score: [0-100]
+- Security & Vulnerability Rating: [Low | Medium | High Risk]
+- Automated Test Pass Rate: [Pass %]
 
-## 📊 Summary
-Provide an honest assessment. Be encouraging but truthful about problems found.
+## ✅ Key Strengths
+- 2-3 specific engineering strengths observed in the submission.
 
-## ✅ Strengths  
-List 2-3 things done well, referencing specific code elements.
+## 📈 Detailed Component Analysis
+### 🏗️ Code Structure & Architecture
+Key architectural, modularity, and readability insights.
 
-## 📈 Code Quality Analysis
+### 🎨 Style & Standards Compliance
+Detailed score breakdown and formatting notes.
 
-### Structure & Organization
-Comment on code organization, readability, and documentation.
+### 🧪 Automated Testing & Sandbox Results
+Detailed test execution breakdown, critical bugs, edge case handling.
 
-### Style Compliance
-Report the actual style score and any specific issues.
-
-### Test Results
-Report the actual test results accurately:
-- If critical_issues exist, report them as bugs to fix
-- Be clear: "X tests passed, Y critical issues were found"
-- List each critical issue
-- Don't hide or minimize problems
-
-## 💡 Recommendations for Improvement
-Based on the analysis, provide specific actionable fixes.
-If critical issues exist, fixing them is top priority.
+## 💡 Prioritized Recommendations
+Numbered list of actionable improvements from highest to lowest severity.
 
 ## 🎯 Next Steps
-Prioritized action list based on severity of issues.
+Actionable plan for the developer.
 
-## 💬 Encouragement
-End with encouragement while being honest about what needs fixing.
-
-Remember: Complete ALL steps including calling save_grading_report."""
+Remember: Complete ALL required tool calls including `save_grading_report`."""
 
     return await instructions_utils.inject_session_state(template, context)
 
@@ -81,7 +66,7 @@ Remember: Complete ALL steps including calling save_grading_report."""
 feedback_synthesizer_agent = Agent(
     name="FeedbackSynthesizer",
     model=config.critic_model,
-    description="Synthesizes all analysis into constructive, personalized feedback",
+    description="Synthesizes code review results into a structured CodeSentinel AI audit report.",
     instruction=feedback_instruction_provider,
     tools=[
         FunctionTool(func=search_past_feedback),

@@ -19,21 +19,70 @@ from concurrent.futures import ThreadPoolExecutor
 from google.genai import types
 from google.adk.tools import ToolContext
 from .constants import StateKeys
+from .history_service import history_service
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
-async def analyze_code_structure(code: str, tool_context: ToolContext) -> Dict[str, Any]:
-    """
-    Analyzes Python code structure using AST parsing.
+def _detect_language(code: str, filename: str = "") -> str:
+    """Detects programming language from filename extension or code syntax clues."""
+    if filename:
+        ext = os.path.splitext(filename)[1].lower()
+        mapping = {
+            ".py": "python",
+            ".js": "javascript",
+            ".jsx": "javascript",
+            ".ts": "typescript",
+            ".tsx": "typescript",
+            ".java": "java",
+            ".cpp": "cpp",
+            ".c": "c",
+            ".h": "c",
+            ".cs": "csharp",
+            ".go": "go",
+            ".rs": "rust",
+            ".php": "php",
+            ".html": "html",
+            ".css": "css",
+            ".sql": "sql",
+            ".sh": "shell",
+            ".json": "json",
+            ".yaml": "yaml",
+            ".yml": "yaml",
+        }
+        if ext in mapping:
+            return mapping[ext]
 
-    This tool parses Python code to extract structural information
-    including functions, classes, imports, and complexity metrics.
+    code_lower = code.lower()
+    if "def " in code and ("import " in code or "self" in code or ":" in code):
+        return "python"
+    if "function" in code or "const " in code or "let " in code or "console.log" in code:
+        return "javascript"
+    if "public class " in code or "system.out.println" in code_lower:
+        return "java"
+    if "#include " in code or "std::cout" in code:
+        return "cpp"
+    if "package main" in code or "func " in code:
+        return "go"
+    if "fn main" in code or "let mut " in code:
+        return "rust"
+    if "<?php" in code:
+        return "php"
+    if "select " in code_lower and "from " in code_lower:
+        return "sql"
+
+    return "python"  # Default assumption
+
+
+async def analyze_code_structure(code: str, tool_context: ToolContext, filename: str = "code_snippet.py") -> Dict[str, Any]:
+    """
+    Analyzes code structure (AST parsing for Python, structural heuristic parsing for multi-language).
 
     Args:
-        code: Python source code to analyze
+        code: Source code to analyze
         tool_context: ADK tool context for state management
+        filename: Optional filename to assist language detection
 
     Returns:
         Dictionary containing analysis results and status
@@ -41,63 +90,90 @@ async def analyze_code_structure(code: str, tool_context: ToolContext) -> Dict[s
     logger.info("Tool: Analyzing code structure...")
 
     try:
-        # Validate input
         if not code or not isinstance(code, str):
             return {
                 "status": "error",
                 "message": "No code provided or invalid input"
             }
 
-        # Store the original code in state for other agents
+        language = _detect_language(code, filename)
         tool_context.state[StateKeys.CODE_TO_REVIEW] = code
         tool_context.state[StateKeys.CODE_LINE_COUNT] = len(code.splitlines())
+        tool_context.state[StateKeys.CODE_LANGUAGE] = language
+        tool_context.state[StateKeys.TARGET_FILE_NAME] = filename
 
-        # Use thread pool for CPU-bound AST parsing
         loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor() as executor:
-            # Parse the code into an AST
-            tree = await loop.run_in_executor(executor, ast.parse, code)
 
-            # Extract structural information in thread pool
-            analysis = await loop.run_in_executor(
-                executor, _extract_code_structure, tree, code
-            )
+        if language == "python":
+            try:
+                with ThreadPoolExecutor() as executor:
+                    tree = await loop.run_in_executor(executor, ast.parse, code)
+                    analysis = await loop.run_in_executor(
+                        executor, _extract_code_structure, tree, code
+                    )
+                analysis["language"] = "python"
+                tool_context.state[StateKeys.CODE_ANALYSIS] = analysis
+                tool_context.state[StateKeys.TEMP_ANALYSIS_TIMESTAMP] = datetime.now().isoformat()
 
-        # Store analysis in state
+                return {
+                    "status": "success",
+                    "analysis": analysis,
+                    "summary": f"Python analysis complete: {analysis['metrics']['function_count']} functions, {analysis['metrics']['class_count']} classes"
+                }
+            except SyntaxError as syntax_err:
+                # If Python syntax error occurred, record it
+                error_msg = f"Python Syntax error at line {syntax_err.lineno}: {syntax_err.msg}"
+                logger.warning(f"Tool: {error_msg}")
+                tool_context.state[StateKeys.SYNTAX_ERROR] = error_msg
+                # Continue with generic analysis so pipeline doesn't crash
+        
+        # Generic multi-language or fallback structural analysis
+        analysis = _extract_generic_code_structure(code, language)
         tool_context.state[StateKeys.CODE_ANALYSIS] = analysis
         tool_context.state[StateKeys.TEMP_ANALYSIS_TIMESTAMP] = datetime.now().isoformat()
-
-        logger.info(f"Tool: Analysis complete - {analysis['metrics']['function_count']} functions, "
-                    f"{analysis['metrics']['class_count']} classes")
 
         return {
             "status": "success",
             "analysis": analysis,
-            "summary": f"Found {analysis['metrics']['function_count']} functions and "
-                       f"{analysis['metrics']['class_count']} classes"
+            "summary": f"Multi-language ({language.capitalize()}) analysis complete: {analysis['metrics']['function_count']} functions/methods detected"
         }
 
-    except SyntaxError as e:
-        error_msg = f"Syntax error at line {e.lineno}: {e.msg}"
-        logger.error(f"Tool: {error_msg}")
-        tool_context.state[StateKeys.SYNTAX_ERROR] = error_msg
-
-        return {
-            "status": "error",
-            "error_type": "syntax",
-            "message": error_msg,
-            "line": e.lineno,
-            "offset": e.offset
-        }
     except Exception as e:
         error_msg = f"Analysis failed: {str(e)}"
         logger.error(f"Tool: {error_msg}", exc_info=True)
-
         return {
             "status": "error",
             "error_type": "parse",
             "message": error_msg
         }
+
+
+def _extract_generic_code_structure(code: str, language: str) -> Dict[str, Any]:
+    """Fallback structural analysis for non-Python or unparseable code."""
+    import re
+    lines = code.splitlines()
+    func_pattern = re.compile(r'(def\s+\w+|function\s+\w+|\w+\s+\w+\s*\([^)]*\)\s*\{|func\s+\w+|fn\s+\w+)')
+    class_pattern = re.compile(r'(class\s+\w+|struct\s+\w+|interface\s+\w+)')
+    import_pattern = re.compile(r'(import\s+|#include\s+|require\(|using\s+|from\s+)')
+
+    funcs = func_pattern.findall(code)
+    classes = class_pattern.findall(code)
+    imports = import_pattern.findall(code)
+
+    return {
+        'language': language,
+        'functions': [{'name': f, 'lineno': i+1} for i, f in enumerate(funcs)],
+        'classes': [{'name': c, 'lineno': i+1} for i, c in enumerate(classes)],
+        'imports': list(set(imports)),
+        'metrics': {
+            'total_lines': len(lines),
+            'function_count': len(funcs),
+            'class_count': len(classes),
+            'import_count': len(imports),
+            'avg_function_length': len(lines) / max(1, len(funcs))
+        }
+    }
+
 
 
 def _extract_code_structure(tree: ast.AST, code: str) -> Dict[str, Any]:
@@ -197,11 +273,13 @@ async def check_code_style(code: str, tool_context: ToolContext) -> Dict[str, An
                     "message": "No code provided or found in state"
                 }
 
+        language = tool_context.state.get(StateKeys.CODE_LANGUAGE, 'python')
+
         # Run style check in thread pool
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor() as executor:
             result = await loop.run_in_executor(
-                executor, _perform_style_check, code
+                executor, _perform_style_check, code, language
             )
 
         # Store results in state
@@ -209,7 +287,7 @@ async def check_code_style(code: str, tool_context: ToolContext) -> Dict[str, An
         tool_context.state[StateKeys.STYLE_ISSUES] = result['issues']
         tool_context.state[StateKeys.STYLE_ISSUE_COUNT] = result['issue_count']
 
-        logger.info(f"Tool: Style check complete - Score: {result['score']}/100, "
+        logger.info(f"Tool: Style check complete ({language}) - Score: {result['score']}/100, "
                     f"Issues: {result['issue_count']}")
 
         return result
@@ -229,10 +307,32 @@ async def check_code_style(code: str, tool_context: ToolContext) -> Dict[str, An
         }
 
 
-def _perform_style_check(code: str) -> Dict[str, Any]:
+def _perform_style_check(code: str, language: str = 'python') -> Dict[str, Any]:
     """Helper to perform style check in thread pool."""
     import io
     import sys
+
+    if language != 'python':
+        # Generic multi-language style rules (line length, trailing space, tabs/spaces)
+        issues = []
+        lines = code.splitlines()
+        for idx, line in enumerate(lines, 1):
+            if len(line) > 120:
+                issues.append({'line': idx, 'column': 120, 'code': 'E501', 'message': f'Line too long ({len(line)} > 120 characters)'})
+            if line.endswith(' ') or line.endswith('\t'):
+                issues.append({'line': idx, 'column': len(line), 'code': 'W291', 'message': 'Trailing whitespace detected'})
+            if '\t' in line and ' ' in line[:len(line)-len(line.lstrip())]:
+                issues.append({'line': idx, 'column': 1, 'code': 'E101', 'message': 'Mixed spaces and tabs in indentation'})
+
+        deductions = len(issues) * 5
+        score = max(0, 100 - deductions)
+        return {
+            'status': 'success',
+            'score': score,
+            'issue_count': len(issues),
+            'issues': issues,
+            'summary': f"Style check ({language.capitalize()}): {score}/100 with {len(issues)} formatting issues found"
+        }
 
     with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tmp:
         tmp.write(code)
@@ -271,6 +371,7 @@ def _perform_style_check(code: str) -> Dict[str, Any]:
                         })
                     except (ValueError, IndexError):
                         pass
+
 
         # Add naming convention checks
         try:
@@ -966,6 +1067,59 @@ def _calculate_avg_function_length(tree: ast.AST) -> float:
     return 0.0
 
 
+async def fetch_historical_context(tool_context: ToolContext, filename: str = "code_snippet.py", language: str = "python") -> Dict[str, Any]:
+    """
+    Retrieves past code review findings, quality patterns, and historical context for the target file or language.
+
+    Args:
+        tool_context: ADK tool context
+        filename: Name of the file being reviewed
+        language: Programming language of the code
+
+    Returns:
+        Historical context string and stats
+    """
+    logger.info(f"Tool: Fetching historical context for {filename} ({language})...")
+    try:
+        context_str = history_service.get_historical_context(filename=filename, language=language)
+        tool_context.state[StateKeys.HISTORICAL_CONTEXT] = context_str
+        return {
+            "status": "success",
+            "historical_context": context_str
+        }
+    except Exception as e:
+        logger.error(f"Tool: Error fetching historical context: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
+async def get_analytics_summary(tool_context: ToolContext) -> Dict[str, Any]:
+    """
+    Retrieves historical metrics, quality score averages, and issue breakdown for the dashboard.
+
+    Args:
+        tool_context: ADK tool context
+
+    Returns:
+        Analytics overview dict
+    """
+    logger.info("Tool: Retrieving analytics summary...")
+    try:
+        analytics = history_service.get_dashboard_analytics()
+        return {
+            "status": "success",
+            "analytics": analytics
+        }
+    except Exception as e:
+        logger.error(f"Tool: Error fetching analytics: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
 # Module exports
 __all__ = [
     'analyze_code_structure',
@@ -976,4 +1130,7 @@ __all__ = [
     'validate_fixed_style',
     'compile_fix_report',
     'save_fix_report',
+    'fetch_historical_context',
+    'get_analytics_summary',
 ]
+

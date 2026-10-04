@@ -1,9 +1,12 @@
 # code_review_assistant/__init__.py
 """
-Code Review Assistant - An intelligent code grading system using ADK.
+CodeSentinel AI — 24/7 Intelligent Code Reviewer
 
-This package provides a multi-agent system for reviewing Python code,
-checking style compliance, running tests, and providing personalized feedback.
+Author: Rahul Sain
+Based on: Code Review Assistant by Ayo Adedeji (Apache-2.0)
+
+An AI-powered multi-agent system for comprehensive code review,
+quality scoring, historical learning, and automated fixes.
 """
 
 from .agent import root_agent

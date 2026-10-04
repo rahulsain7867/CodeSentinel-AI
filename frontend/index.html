@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeSentinel AI — 24/7 Intelligent Code Reviewer</title>
+    <meta name="description" content="Production-grade AI code review, security audit, and automated refactoring platform powered by Google ADK and Gemini. Developed by Rahul Sain.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="dark-theme">
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="brand">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name">CodeSentinel <span class="brand-highlight">AI</span></span>
+                    <span class="brand-tagline">24/7 Intelligent Code Reviewer</span>
+                </div>
+            </div>
+
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-tab="reviewer-tab">
+                    <i class="fa-solid fa-code"></i> Code Reviewer
+                </button>
+                <button class="nav-tab" data-tab="analytics-tab">
+                    <i class="fa-solid fa-chart-line"></i> Analytics & Metrics
+                </button>
+                <button class="nav-tab" data-tab="history-tab">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Review History
+                </button>
+                <button class="nav-tab" data-tab="settings-tab">
+                    <i class="fa-solid fa-sliders"></i> System Config
+                </button>
+            </nav>
+
+            <div class="nav-status">
+                <span class="status-indicator active">
+                    <span class="pulse-dot"></span> 24/7 ACTIVE
+                </span>
+                <span class="author-badge">
+                    <i class="fa-solid fa-user-gear"></i> By Rahul Sain
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Wrapper -->
+    <main class="main-wrapper">
+        <!-- TAB 1: CODE REVIEWER -->
+        <section id="reviewer-tab" class="tab-content active">
+            <div class="grid-layout">
+                <!-- Left Panel: Input & Code Editor -->
+                <div class="panel editor-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fa-solid fa-terminal"></i> Source Code Input
+                        </div>
+                        <div class="editor-controls">
+                            <select id="language-select" class="custom-select">
+                                <option value="python">Python</option>
+                                <option value="javascript">JavaScript / TS</option>
+                                <option value="java">Java</option>
+                                <option value="cpp">C / C++</option>
+                                <option value="go">Go</option>
+                                <option value="rust">Rust</option>
+                                <option value="php">PHP</option>
+                                <option value="sql">SQL</option>
+                            </select>
+                            <button id="sample-code-btn" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Load Sample
+                            </button>
+                            <button id="clear-code-btn" class="btn btn-ghost btn-sm">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="editor-container">
+                        <textarea id="code-input" placeholder="// Paste or write source code for 24/7 intelligent review...&#10;def calculate_total(items):&#10;    total = 0&#10;    for i in range(len(items)):&#10;        total = total + items[i]['price']&#10;    return total" spellcheck="false"></textarea>
+                    </div>
+
+                    <div class="panel-footer">
+                        <div class="file-upload-wrapper">
+                            <label for="file-input" class="file-label">
+                                <i class="fa-solid fa-file-arrow-up"></i> Upload File
+                            </label>
+                            <input type="file" id="file-input" accept=".py,.js,.ts,.java,.cpp,.c,.go,.rs,.php,.sql,.html,.css,.sh">
+                            <span id="file-name-display" class="file-name-text">No file loaded</span>
+                        </div>
+                        <button id="run-review-btn" class="btn btn-primary btn-lg">
+                            <i class="fa-solid fa-shield-cat"></i> Run Sentinel Review
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Panel: Review & Audit Output -->
+                <div class="panel results-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fa-solid fa-clipboard-check"></i> Audit & Review Results
+                        </div>
+                        <div id="quick-score-badge" class="score-badge hidden">
+                            Score: <span id="score-val">100</span>/100
+                        </div>
+                    </div>
+
+                    <div id="results-container" class="results-body">
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="fa-solid fa-microchip"></i>
+                            </div>
+                            <h3>Ready for Code Analysis</h3>
+                            <p>Paste code on the left or upload a file, then click <strong>Run Sentinel Review</strong> to trigger multi-language security audit, PEP8/style check, automated testing, and historical pattern context.</p>
+                        </div>
+
+                        <!-- Loading State Spinner -->
+                        <div id="loading-spinner" class="loading-state hidden">
+                            <div class="spinner"></div>
+                            <h4>CodeSentinel AI Pipeline Executing...</h4>
+                            <p id="loading-step-text">Analyzing AST structure & security rules...</p>
+                        </div>
+
+                        <!-- Review Output Display -->
+                        <div id="review-output" class="markdown-body hidden"></div>
+                    </div>
+
+                    <div class="panel-footer result-actions hidden" id="result-actions">
+                        <button id="autofix-btn" class="btn btn-success btn-lg">
+                            <i class="fa-solid fa-bolt-lightning"></i> 1-Click Sentinel Auto-Fix
+                        </button>
+                        <button id="copy-report-btn" class="btn btn-secondary">
+                            <i class="fa-solid fa-copy"></i> Copy Audit Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: ANALYTICS & METRICS -->
+        <section id="analytics-tab" class="tab-content">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-icon primary">
+                        <i class="fa-solid fa-file-circle-check"></i>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="metric-total-reviews">0</span>
+                        <span class="metric-label">Total Audits Conducted</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-icon success">
+                        <i class="fa-solid fa-gauge-high"></i>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="metric-avg-score">100.0</span>
+                        <span class="metric-label">Average Sentinel Quality Score</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-icon warning">
+                        <i class="fa-solid fa-bug"></i>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="metric-total-issues">0</span>
+                        <span class="metric-label">Issues & Vulnerabilities Flagged</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-icon info">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="metric-total-fixes">0</span>
+                        <span class="metric-label">Auto-Fixes Successfully Applied</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analytics-panels">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fa-solid fa-layer-group"></i> Issue Severity Distribution
+                        </div>
+                    </div>
+                    <div class="severity-bars" id="severity-breakdown-container">
+                        <div class="severity-item">
+                            <span class="severity-name critical">Critical</span>
+                            <div class="progress-bar-bg"><div class="progress-bar-fill critical" style="width: 0%"></div></div>
+                            <span class="severity-count" id="count-critical">0</span>
+                        </div>
+                        <div class="severity-item">
+                            <span class="severity-name high">High</span>
+                            <div class="progress-bar-bg"><div class="progress-bar-fill high" style="width: 0%"></div></div>
+                            <span class="severity-count" id="count-high">0</span>
+                        </div>
+                        <div class="severity-item">
+                            <span class="severity-name medium">Medium</span>
+                            <div class="progress-bar-bg"><div class="progress-bar-fill medium" style="width: 0%"></div></div>
+                            <span class="severity-count" id="count-medium">0</span>
+                        </div>
+                        <div class="severity-item">
+                            <span class="severity-name low">Low</span>
+                            <div class="progress-bar-bg"><div class="progress-bar-fill low" style="width: 0%"></div></div>
+                            <span class="severity-count" id="count-low">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fa-solid fa-code-compare"></i> Language Breakdown
+                        </div>
+                    </div>
+                    <div id="language-breakdown-container" class="language-list">
+                        <p class="text-muted">No language data recorded yet.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: REVIEW HISTORY -->
+        <section id="history-tab" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-list-check"></i> Historical Audit Log & Learning Records
+                    </div>
+                    <button id="refresh-history-btn" class="btn btn-secondary btn-sm">
+                        <i class="fa-solid fa-rotate"></i> Refresh
+                    </button>
+                </div>
+                <div class="table-wrapper">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Filename</th>
+                                <th>Language</th>
+                                <th>Quality Score</th>
+                                <th>Issues Found</th>
+                                <th>Author</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <tr>
+                                <td colspan="7" class="text-center">No historical reviews found. Run your first review!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: SYSTEM CONFIG -->
+        <section id="settings-tab" class="tab-content">
+            <div class="config-grid">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fa-solid fa-server"></i> Environment & Model Configuration
+                        </div>
+                    </div>
+                    <div class="config-details">
+                        <div class="config-item">
+                            <span class="config-label">Application Name</span>
+                            <span class="config-val">CodeSentinel AI</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Tagline</span>
+                            <span class="config-val">24/7 Intelligent Code Reviewer</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Lead Architect & Developer</span>
+                            <span class="config-val">Rahul Sain</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Worker Agent Model</span>
+                            <span class="config-val" id="cfg-worker-model">gemini-2.5-flash</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Critic / Synthesizer Model</span>
+                            <span class="config-val" id="cfg-critic-model">gemini-2.5-pro</span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Persistence Engine</span>
+                            <span class="config-val" id="cfg-persistence">GCP Firestore / Local JSON Cache</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fa-solid fa-scale-balanced"></i> Project Attribution & License
+                        </div>
+                    </div>
+                    <div class="config-details">
+                        <p class="license-text">
+                            <strong>CodeSentinel AI</strong> is built upon the open-source <em>adk-code-review-assistant</em> originally authored by Ayo Adedeji (Apache-2.0 License).
+                        </p>
+                        <p class="license-text">
+                            Substantially redesigned and augmented by <strong>Rahul Sain</strong> with multi-language analysis, 24/7 web dashboard, historical pattern learning, Firestore integration, and 1-click auto-refactoring capabilities.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <p>&copy; 2026 <strong>CodeSentinel AI</strong> — 24/7 Intelligent Code Reviewer by Rahul Sain. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Custom JS -->
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

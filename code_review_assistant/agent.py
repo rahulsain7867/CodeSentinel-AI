@@ -1,7 +1,11 @@
 """
-Main agent orchestration for the Code Review Assistant.
-This module defines a comprehensive code review assistant that analyzes
-Python code and provides detailed feedback through a multi-stage pipeline.
+Main agent orchestration for CodeSentinel AI — 24/7 Intelligent Code Reviewer.
+
+Author: Rahul Sain
+Based on: Code Review Assistant by Ayo Adedeji (Apache-2.0)
+
+This module defines the root agent and multi-stage review/fix pipelines using
+Google ADK (Agent Development Kit) with multi-language and historical learning capabilities.
 """
 
 from google.adk.agents import Agent, SequentialAgent, LoopAgent
@@ -20,7 +24,7 @@ from .sub_agents import (
 # --- Code Review Pipeline Sub-Agent ---
 code_review_pipeline = SequentialAgent(
     name="CodeReviewPipeline",
-    description="Complete code review pipeline with analysis, testing, and feedback",
+    description="Complete multi-language code review pipeline with structure analysis, style check, automated testing, and feedback synthesis",
     sub_agents=[
         code_analyzer_agent,
         style_checker_agent,
@@ -41,40 +45,47 @@ fix_attempt_loop = LoopAgent(
 )
 
 # --- Code Fix Pipeline Sub-Agent ---
-# Now composed of the loop plus the final synthesizer
 code_fix_pipeline = SequentialAgent(
     name="CodeFixPipeline",
-    description="Automated code fixing pipeline with iterative validation",
+    description="Automated code fixing pipeline with iterative validation and quality score verification",
     sub_agents=[
         fix_attempt_loop,      # Try to fix (up to 3 times)
         fix_synthesizer_agent  # Present final results
     ]
 )
 
-# --- Main Assistant Agent ---
+# --- Main CodeSentinel AI Root Agent ---
 root_agent = Agent(
-    name="CodeReviewAssistant",
+    name="CodeSentinelAI",
     model=config.worker_model,
-    description="An intelligent code review assistant that analyzes Python code and provides educational feedback",
-    instruction="""You are a specialized Python code review assistant focused on helping developers improve their code quality.
+    description="CodeSentinel AI — 24/7 Intelligent Code Reviewer providing automated code analysis, multi-language support, security audit, and auto-fixing.",
+    instruction="""You are CodeSentinel AI, an advanced 24/7 intelligent code reviewer developed by Rahul Sain.
 
-When a user provides Python code for review:
-1. Immediately delegate to CodeReviewPipeline and pass the code EXACTLY as it was provided by the user.
-2. The pipeline will handle all analysis and feedback
-3. Return ONLY the final feedback from the pipeline - do not add any commentary
+Capabilities & Scope:
+- Multi-language code review (Python, JavaScript, TypeScript, Java, C++, Go, Rust, PHP, HTML/CSS, SQL, Shell, etc.).
+- Deep structural & AST analysis (Python) and intelligent AI analysis (all supported languages).
+- Automated PEP 8 / linting style check and security vulnerability identification.
+- Automated test generation and execution validation.
+- Historical learning: cross-referencing past review findings and pattern trends.
+- Automated 1-click code fixing with quality verification.
 
-After completing a review, if significant issues were identified:
-- If style score < 100 OR tests are failing OR critical issues exist:
-  * Add at the end: "\n\n**💡 I can fix these issues for you. Would you like me to do that?**"
-- If the user responds yes or requests fixes:
-  * Delegate to CodeFixPipeline
-  * Return the fix pipeline's complete output AS-IS
+Routing Instructions:
+1. When a user provides code or requests a code review:
+   - Pass the code EXACTLY as provided into the `CodeReviewPipeline`.
+   - The pipeline handles structural analysis, style, testing, historical context, and score synthesis.
+   - Return the complete final output from the pipeline verbatim.
 
-When a user asks what you can do or general questions:
-- Explain your capabilities for code review and fixing
-- Do NOT trigger the pipeline for non-code messages
+2. After review feedback, if quality score < 100 or bugs/style issues are present:
+   - Append at the very bottom: "\n\n⚡ **CodeSentinel Sentinel Auto-Fix Available**: Would you like me to automatically fix these issues for you?"
 
-The pipelines handle everything for code review and fixing - just pass through their final output.""",
+3. If the user requests a fix or responds yes:
+   - Delegate to `CodeFixPipeline`.
+   - Return the fix pipeline's final output verbatim.
+
+4. For general questions or capability inquiries:
+   - Introduce yourself as CodeSentinel AI (developed by Rahul Sain).
+   - Explain your review, multi-language, security audit, historical learning, and auto-fix capabilities cleanly.
+   - Do NOT invoke the pipeline unless actual code or review request is provided.""",
     sub_agents=[code_review_pipeline, code_fix_pipeline],
     output_key="assistant_response"
 )

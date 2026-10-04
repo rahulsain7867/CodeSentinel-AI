@@ -1,8 +1,9 @@
 [tool.poetry]
-name = "code-review-assistant"
+name = "codesentinel-ai"
 version = "1.0.0"
-description = "A code review assistant powered by Google ADK and Gemini models"
-authors = ["Ayo Adedeji <ayoad@google.com>"]
+description = "CodeSentinel AI — 24/7 Intelligent Code Reviewer powered by Google ADK and Gemini"
+# Original project by Ayo Adedeji (Apache-2.0). Substantially modified by Rahul Sain.
+authors = ["Rahul Sain"]
 readme = "README.md"
 packages = [{include = "code_review_assistant"}]
 
@@ -10,6 +11,7 @@ packages = [{include = "code_review_assistant"}]
 python = "^3.10"
 google-cloud-aiplatform = {extras = ["adk", "agent-engines"], version = "^1.111"}
 google-adk = "^1.14.1"
+google-cloud-firestore = "^2.16.0"
 pycodestyle = "^2.11.0"
 python-dotenv = "^1.0.0"
 pydantic-settings = "^2.0.0"
@@ -23,10 +25,6 @@ black = "^23.0.0"
 flake8 = "^6.0.0"
 mypy = "^1.5.0"
 pre-commit = "^3.5.0"
-
-[tool.poetry.scripts]
-deploy = "deployment.deploy:main"
-test-agent = "scripts.test_runner:main"
 
 [build-system]
 requires = ["poetry-core"]
@@ -48,6 +46,7 @@ extend-exclude = '''
   | build
   | dist
   | test_code_inputs
+  | frontend
 )/
 '''
 
@@ -62,4 +61,4 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
-exclude = ["test_code_inputs/"]
+exclude = ["test_code_inputs/", "frontend/"]

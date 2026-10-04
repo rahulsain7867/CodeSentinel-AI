@@ -1,8 +1,8 @@
 """
-Code Fixer Agent - Generates fixes for all identified issues.
+Code Fixer Agent — Generates multi-language fixes and code refactoring.
 
-This agent takes the analysis results from the review pipeline
-and generates corrected code that addresses all issues.
+Author: Rahul Sain
+Based on: Code Review Assistant by Ayo Adedeji (Apache-2.0)
 """
 
 from google.adk.agents import Agent
@@ -13,41 +13,28 @@ from code_review_assistant.config import config
 
 
 async def code_fixer_instruction_provider(context: ReadonlyContext) -> str:
-    """Dynamic instruction provider that instructs the agent to output raw code only."""
-    template = """You are an expert code fixing specialist.
+    """Dynamic instruction provider instructing agent to output corrected code in target language."""
+    template = """You are CodeSentinel AI's Code Refactoring & Auto-Fix Specialist.
 
 Original Code:
-```python
+```
 {code_to_review}
 ```
 
-Analysis Results:
+Analysis & Review Summary:
+- Target Language: {code_language}
 - Style Score: {style_score}/100
 - Style Issues: {style_issues}
-- Test Results: {test_execution_summary}
-
-Based on the test results, identify and fix ALL issues including:
-- Interface bugs (e.g., if start parameter expects wrong type)
-- Logic errors (e.g., KeyError when accessing graph nodes)
-- Style violations
-- Missing documentation
+- Test Execution Summary: {test_execution_summary}
 
 YOUR TASK:
-Generate the complete fixed Python code that addresses all identified issues.
+Generate the complete, fully-corrected code addressing all identified bugs, edge cases, and style violations.
 
 CRITICAL INSTRUCTIONS:
-- Output ONLY the corrected Python code
-- Do NOT include markdown code blocks (```python)
-- Do NOT include any explanations or commentary
-- The output should be valid, executable Python code and nothing else
-
-Common fixes to apply based on test results:
-- If tests show AttributeError with 'pop', fix: stack = [start] instead of stack = start
-- If tests show KeyError accessing graph, fix: use graph.get(current, [])
-- Add docstrings if missing
-- Fix any style violations identified
-
-Output the complete fixed code now:"""
+- Output ONLY the corrected source code.
+- Do NOT wrap with markdown backticks or commentary unless required by your executor.
+- Maintain the original language programming paradigms and best practices.
+- Ensure all functions, error handlers, docstrings/comments, and imports are fully resolved."""
 
     return await instructions_utils.inject_session_state(template, context)
 
@@ -55,8 +42,8 @@ Output the complete fixed code now:"""
 code_fixer_agent = Agent(
     name="CodeFixer",
     model=config.worker_model,
-    description="Generates comprehensive fixes for all identified code issues",
+    description="Generates complete code fixes addressing logic bugs, edge cases, and style issues.",
     instruction=code_fixer_instruction_provider,
     code_executor=BuiltInCodeExecutor(),
-    output_key="code_fixes"  # This will contain raw Python code
+    output_key="code_fixes"
 )
