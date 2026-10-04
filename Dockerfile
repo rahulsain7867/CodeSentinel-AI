@@ -1,22 +1,14 @@
 # Stage 1: The Builder
 # This stage installs all dependencies, including those needed for specific deployments.
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Install poetry for dependency management
-RUN pip install poetry
+# Copy pinned runtime dependencies first to leverage Docker layer caching.
+COPY code_review_assistant/requirements.txt ./requirements.txt
 
-# Copy only the dependency files first to leverage Docker's layer caching.
-# If these files don't change, this layer won't be rebuilt.
-COPY pyproject.toml poetry.lock* ./
-
-# Install project dependencies using poetry.
-# We also install psycopg2-binary using pip, which is the required
-# PostgreSQL driver for connecting to Cloud SQL.
-RUN poetry config virtualenvs.create false && \
-    poetry install --without dev --no-interaction --no-ansi && \
-    pip install psycopg2-binary
+# Install production dependencies.
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .
@@ -48,7 +40,5 @@ ENV PYTHONUNBUFFERED=1
 # will always provide the correct URI for the target environment.
 ENV SESSION_SERVICE_URI="sqlite:///./sessions.db"
 
-# This is the command that will be run when the container starts.
-# It's simple and flexible: it just runs the ADK API server and expects the
-# session service URI to be provided as an environment variable.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
+# Start the FastAPI app, honoring Render's injected PORT when present.
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}"]

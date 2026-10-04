@@ -4,29 +4,54 @@ import uvicorn
 from fastapi.staticfiles import StaticFiles
 from google.adk.cli.fast_api import get_fast_api_app
 from fastapi import Request
-from fastapi.responses import HTMLResponse
 
 # Get credentials from environment variables
-from code_review_assistant.history_service import ReviewHistoryService
+from code_review_assistant.history_service import HistoryService
 DB_USER = os.environ.get("DB_USER")
 DB_PASSWORD = os.environ.get("DB_PASSWORD")
 DB_NAME = os.environ.get("DB_NAME")
 CLOUD_SQL_CONNECTION_NAME = os.environ.get("CLOUD_SQL_CONNECTION_NAME")
-ARTIFACT_BUCKET = os.environ.get("ARTIFACT_BUCKET", "code-review-assistant-artifacts")
+ARTIFACT_BUCKET = os.environ.get("ARTIFACT_BUCKET")
 
-# Build the session URI if we have all database credentials
-if all([DB_USER, DB_PASSWORD, DB_NAME, CLOUD_SQL_CONNECTION_NAME]):
-    SESSION_SERVICE_URI = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}?host=/cloudsql/{CLOUD_SQL_CONNECTION_NAME}"
-    print(f"Using Cloud SQL for session persistence")
-else:
-    SESSION_SERVICE_URI = ""  # Falls back to in-memory
-    print("Using in-memory session service (no database credentials provided)")
+
+def _is_valid_session_uri(uri: str) -> bool:
+    candidate = uri.strip()
+    return bool(candidate) and candidate not in {"vertexai://"}
+
+
+def _get_session_service_uri() -> str:
+    explicit_uri = os.getenv("SESSION_SERVICE_URI", "")
+    if _is_valid_session_uri(explicit_uri):
+        return explicit_uri.strip()
+
+    if all([DB_USER, DB_PASSWORD, DB_NAME, CLOUD_SQL_CONNECTION_NAME]):
+        return (
+            f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}"
+            f"?host=/cloudsql/{CLOUD_SQL_CONNECTION_NAME}"
+        )
+
+    return "sqlite:///./sessions.db"
+
+
+def _get_artifact_service_uri() -> str:
+    explicit_uri = os.getenv("ARTIFACT_SERVICE_URI", "").strip()
+    if explicit_uri.startswith("gs://") and explicit_uri != "gs://":
+        return explicit_uri.strip()
+
+    if ARTIFACT_BUCKET and ARTIFACT_BUCKET.strip():
+        return f"gs://{ARTIFACT_BUCKET.strip()}"
+
+    return ""
+
+
+SESSION_SERVICE_URI = _get_session_service_uri()
+ARTIFACT_SERVICE_URI = _get_artifact_service_uri()
 
 # Create the FastAPI app with ADK
 app = get_fast_api_app(
     agents_dir=os.path.dirname(os.path.abspath(__file__)),
-    session_service_uri=os.getenv("SESSION_SERVICE_URI", "sqlite:///./sessions.db"),
-    artifact_service_uri=os.getenv("ARTIFACT_SERVICE_URI", "file:///app/artifacts"),
+    session_service_uri=SESSION_SERVICE_URI,
+    artifact_service_uri=ARTIFACT_SERVICE_URI,
     allow_origins=["*"],
     web=True,
     trace_to_cloud=False
@@ -36,22 +61,22 @@ app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__
 
 @app.get("/api/dashboard")
 async def api_dashboard():
-    service = ReviewHistoryService()
+    service = HistoryService()
     return service.get_dashboard_analytics()
 
 @app.get("/api/history")
 async def api_history(limit: int = 50):
-    service = ReviewHistoryService()
+    service = HistoryService()
     return service.get_review_history(limit=limit)
 
 @app.get("/api/trends")
 async def api_trends():
-    service = ReviewHistoryService()
+    service = HistoryService()
     return service.get_quality_trend()
 
 @app.get("/api/recurring-issues")
 async def api_recurring_issues():
-    service = ReviewHistoryService()
+    service = HistoryService()
     return service.get_recurring_issues()
 
 @app.post("/api/review")

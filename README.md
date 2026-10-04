@@ -378,6 +378,31 @@ What the script handles automatically:
 - Deploys with ADK CLI
 - Configures Cloud SQL connection
 
+### Render (Docker Web Service)
+
+This repository now deploys directly with the checked-in `Dockerfile`.
+
+Recommended Render settings:
+- **Environment**: Docker
+- **Dockerfile Path**: `./Dockerfile`
+- **Start Command**: leave empty (uses container `CMD`)
+
+Environment variables:
+- Required for model access:
+  - `GOOGLE_GENAI_USE_VERTEXAI` (`true`/`false`)
+  - `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` when using Vertex AI
+  - `GOOGLE_API_KEY` when not using Vertex AI
+- Optional persistence:
+  - `SESSION_SERVICE_URI` (full DB URI), or
+  - `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `CLOUD_SQL_CONNECTION_NAME` (Cloud SQL socket mode)
+- Optional artifact storage:
+  - `ARTIFACT_SERVICE_URI` (for example `gs://your-bucket`), or
+  - `ARTIFACT_BUCKET` (converted automatically to `gs://...`)
+
+If optional persistence/storage variables are not set, the app safely falls back to:
+- `sqlite:///./sessions.db` for sessions
+- in-memory artifact storage
+
 ### Vertex AI Agent Engine (Fully Managed)
 
 ```bash
