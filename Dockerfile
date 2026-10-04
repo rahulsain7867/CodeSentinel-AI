@@ -28,6 +28,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Copy executable binaries (uvicorn, adk, poetry, etc.) from builder
+COPY --from=builder /usr/local/bin /usr/local/bin
+
 # Copy the installed Python packages from the builder stage
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
