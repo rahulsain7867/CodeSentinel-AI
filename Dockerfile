@@ -15,11 +15,11 @@ COPY pyproject.toml poetry.lock* ./
 # We also install psycopg2-binary using pip, which is the required
 # PostgreSQL driver for connecting to Cloud SQL.
 RUN poetry config virtualenvs.create false && \
-    poetry install --no-dev --no-interaction --no-ansi && \
+    poetry install --without dev --no-interaction --no-ansi && \
     pip install psycopg2-binary
 
 # Copy the rest of the application code
-COPY code_review_assistant/ ./code_review_assistant/
+COPY . .
 
 # ---
 # Stage 2: The Final Production Image
@@ -27,6 +27,9 @@ COPY code_review_assistant/ ./code_review_assistant/
 FROM python:3.11-slim
 
 WORKDIR /app
+
+# Copy executable binaries (uvicorn, adk, poetry, etc.) from builder
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy the installed Python packages from the builder stage
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
@@ -48,4 +51,4 @@ ENV SESSION_SERVICE_URI="sqlite:///./sessions.db"
 # This is the command that will be run when the container starts.
 # It's simple and flexible: it just runs the ADK API server and expects the
 # session service URI to be provided as an environment variable.
-CMD ["sh", "-c", "adk api_server code_review_assistant --port ${PORT:-8080} --host 0.0.0.0 --session_service_uri \"$SESSION_SERVICE_URI\" --artifact_service_uri \"$ARTIFACT_SERVICE_URI\""]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]

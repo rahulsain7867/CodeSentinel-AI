@@ -1,9 +1,8 @@
 [tool.poetry]
 name = "codesentinel-ai"
 version = "1.0.0"
-description = "CodeSentinel AI — 24/7 Intelligent Code Reviewer powered by Google ADK and Gemini"
-# Original project by Ayo Adedeji (Apache-2.0). Substantially modified by Rahul Sain.
-authors = ["Rahul Sain"]
+description = "A code review assistant powered by Google ADK and Gemini models"
+authors = ["Ayo Adedeji <ayoad@google.com>"]
 readme = "README.md"
 packages = [{include = "code_review_assistant"}]
 
@@ -61,4 +60,4 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
-exclude = ["test_code_inputs/", "frontend/"]
+exclude = ["test_code_inputs/"]
