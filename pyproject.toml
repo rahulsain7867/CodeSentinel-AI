@@ -1,10 +1,9 @@
 [tool.poetry]
 name = "code-review-assistant"
 version = "1.0.0"
-description = "A code review assistant powered by Google ADK and Gemini models"
-authors = ["Ayo Adedeji <ayoad@google.com>"]
-readme = "README.md"
-packages = [{include = "code_review_assistant"}]
+description = ""
+authors = ["Rahul Sain"]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
