@@ -3,6 +3,8 @@ import os
 import uvicorn
 from fastapi.staticfiles import StaticFiles
 from google.adk.cli.fast_api import get_fast_api_app
+from google.adk.artifacts import InMemoryArtifactService 
+
 from fastapi import Request
 
 # Get credentials from environment variables
