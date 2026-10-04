@@ -15,7 +15,7 @@ COPY pyproject.toml poetry.lock* ./
 # We also install psycopg2-binary using pip, which is the required
 # PostgreSQL driver for connecting to Cloud SQL.
 RUN poetry config virtualenvs.create false && \
-    poetry install --no-dev --no-interaction --no-ansi && \
+    poetry install --without dev --no-interaction --no-ansi && \
     pip install psycopg2-binary
 
 # Copy the rest of the application code
