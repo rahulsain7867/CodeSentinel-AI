@@ -32,7 +32,11 @@ class HistoryService:
 
     def __init__(self, collection_name: str = "codesentinel_reviews"):
         self.collection_name = collection_name
-        self.use_firestore = config.FIRESTORE_ENABLED
+        firestore_flag = os.getenv("FIRESTORE_ENABLED")
+        if firestore_flag is not None:
+            self.use_firestore = firestore_flag.strip().lower() in {"1", "true", "yes", "on"}
+        else:
+            self.use_firestore = bool(getattr(config, "google_cloud_project", None))
         self.db = None
         self._local_cache: List[Dict[str, Any]] = []
 
@@ -40,7 +44,7 @@ class HistoryService:
             try:
                 from google.cloud import firestore
 
-                project_id = config.GCP_PROJECT_ID or None
+                project_id = getattr(config, "google_cloud_project", None) or None
                 self.db = firestore.Client(project=project_id)
                 logger.info(f"Initialized Firestore client for project: {project_id or 'default'}")
             except Exception as e:
@@ -239,6 +243,40 @@ class HistoryService:
             "recent_reviews": records[:10],
         }
 
+    def get_quality_trend(self, limit: int = 30) -> Dict[str, Any]:
+        """Returns score trend data for charting."""
+        records = self.get_review_history(limit=limit)
+        trend_points = [
+            {
+                "timestamp": record.get("timestamp"),
+                "quality_score": record.get("quality_score", 100.0),
+            }
+            for record in reversed(records)
+        ]
+        return {
+            "points": trend_points,
+            "count": len(trend_points),
+        }
+
+    def get_recurring_issues(self, limit: int = 10) -> Dict[str, Any]:
+        """Returns most frequent issue messages from recent history."""
+        issue_counts: Dict[str, int] = {}
+        for record in self.get_review_history(limit=200):
+            for issue in record.get("issues_found", []):
+                if isinstance(issue, dict):
+                    text = issue.get("message") or issue.get("description") or ""
+                else:
+                    text = str(issue)
+                text = text.strip()
+                if text:
+                    issue_counts[text] = issue_counts.get(text, 0) + 1
+
+        top_issues = sorted(issue_counts.items(), key=lambda item: item[1], reverse=True)[:limit]
+        return {
+            "items": [{"issue": issue, "count": count} for issue, count in top_issues],
+            "count": len(top_issues),
+        }
+
     def clear_history(self) -> bool:
         """Clears local cache and file for testing/reset."""
         self._local_cache = []
@@ -252,3 +290,4 @@ class HistoryService:
 
 # Global singleton instance
 history_service = HistoryService()
+ReviewHistoryService = HistoryService
