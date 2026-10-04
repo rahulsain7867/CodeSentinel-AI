@@ -19,7 +19,7 @@ RUN poetry config virtualenvs.create false && \
     pip install psycopg2-binary
 
 # Copy the rest of the application code
-COPY code_review_assistant/ ./code_review_assistant/
+COPY . .
 
 # ---
 # Stage 2: The Final Production Image
